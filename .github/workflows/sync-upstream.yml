@@ -1,0 +1,72 @@
+name: Sync Upstream Branches
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repo
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone https://x-access-token:${TOKEN}@github.com/garygg42/betaflight-fork.git repo
+          cd repo
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git remote add upstream https://github.com/betaflight/betaflight.git
+          git fetch upstream --prune --tags
+          git fetch origin
+
+          # =========================
+          # MASTER
+          # =========================
+
+          git checkout master
+
+          git reset --hard origin/master
+
+          git rebase upstream/master || true
+
+          if [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; then
+            echo "Conflicts detected - keeping OUR version"
+
+            git checkout --ours .
+            git add .
+
+            git rebase --continue || true
+          fi
+
+          git rebase --strategy-option=ours upstream/master || true
+
+          git push origin master --force-with-lease
+
+          # =========================
+          # OTHER BRANCHES
+          # =========================
+
+          for branch in $(git for-each-ref \
+              --format='%(refname:short)' refs/remotes/upstream/ \
+              | grep -v '^upstream/HEAD$'); do
+
+            name="${branch#upstream/}"
+
+            [[ "$name" == "master" ]] && continue
+            [[ "$name" == gg/* ]] && continue
+
+            echo "Syncing $name"
+
+            git checkout -B "$name" "$branch"
+            git push origin "$name" --force
+          done
+
+          git push origin --tags
