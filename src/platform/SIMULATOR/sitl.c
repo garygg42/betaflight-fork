@@ -283,6 +283,9 @@ static void *udpRCThread(void *data)
                 rxRuntimeState.rxProvider = RX_PROVIDER_UDP;
                 rc_received = true;
             }
+            printf("[SITL] new rc %d: t:%f AETR: %d %d %d %d AUX1-4: %d %d %d %d\n", n, rcPkt.timestamp,
+                rcPkt.channels[0], rcPkt.channels[1],rcPkt.channels[2],rcPkt.channels[3],
+                rcPkt.channels[4], rcPkt.channels[5],rcPkt.channels[6],rcPkt.channels[7]);
         }
     }
 
